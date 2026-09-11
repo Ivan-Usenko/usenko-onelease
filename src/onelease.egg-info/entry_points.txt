@@ -1,0 +1,2 @@
+[console_scripts]
+onelease = onelease.cli:main
