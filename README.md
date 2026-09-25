@@ -25,3 +25,10 @@ onelease
 pip install -e ".[dev]"
 pytest
 ```
+
+# Опис функцій
+
+```
+# Витягує суму та валюту з тексту оголошення. Повертає (сума, валюта) або (None, None), якщо не знайдено.
+def parse_price(text: str) -> tuple[float | None, str | None]
+```
