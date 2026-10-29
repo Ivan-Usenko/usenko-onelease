@@ -3,3 +3,6 @@
 ruff
 pytest
 pre-commit
+mypy
+pydantic
+pydantic-settings

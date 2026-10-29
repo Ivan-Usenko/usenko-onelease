@@ -1,10 +1,10 @@
-from onelease.services.pipeline import PipelineStats, parse_all, batched
+from onelease.services.pipeline import PipelineStats, batched, parse_all
 
 
-def test_invalid_rows_are_counted():
+def test_invalid_rows_are_counted() -> None:
     rows = [
-        {"title": "Dev", "company": "A", "salary": "100", "city": "Київ"},
-        {"title": "", "company": "B", "salary": "200", "city": "Львів"},
+        {"title": "Dev", "company": "A", "price": "100", "city": "Київ"},
+        {"title": "", "company": "B", "price": "200", "city": "Львів"},
     ]
     stats = PipelineStats()
     result = list(parse_all(rows, stats))  # матеріалізуємо один раз
@@ -13,5 +13,8 @@ def test_invalid_rows_are_counted():
     assert stats.invalid == 1
 
 
-def test_batched_splits_tail():
-    assert [len(b) for b in batched(range(7), 3)] == [3, 3, 1]
+def test_batched_splits_tail() -> None:
+    rows = [{"title": f"{i}", "company": f"A{i}", "price": "100", "city": "Київ"} for i in range(7)]
+    stats = PipelineStats()
+    result = list(parse_all(rows, stats))  # матеріалізуємо один раз
+    assert [len(b) for b in batched(result, 3)] == [3, 3, 1]

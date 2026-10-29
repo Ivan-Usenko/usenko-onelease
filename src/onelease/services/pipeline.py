@@ -2,9 +2,12 @@ from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from itertools import islice
+from typing import Any
+
+from pydantic import ValidationError
 
 from ..domain.models import RentalListing
-from ..domain.parse import to_rental_listing
+from ..sources.schemas import RentalListingIn
 
 
 @dataclass(slots=True)
@@ -13,7 +16,7 @@ class PipelineStats:
     invalid: int = 0
     duplicates: int = 0
     kept: int = 0
-    by_city: Counter = field(default_factory=Counter)
+    by_city: Counter[str] = field(default_factory=Counter)
     price_count: int = 0
     price_sum: int = 0
     price_min: int | None = None
@@ -26,14 +29,14 @@ class PipelineStats:
         return self.price_sum / self.price_count
 
 
-def parse_all(rows: Iterable[dict], stats: PipelineStats) -> Iterator[RentalListing]:
+def parse_all(rows: Iterable[dict[str, Any]], stats: PipelineStats) -> Iterator[RentalListing]:
     for row in rows:
         stats.read += 1
-        listing = to_rental_listing(row)
-        if listing is None:
+        try:
+            yield RentalListingIn.model_validate(row).to_domain()
+        except ValidationError:
             stats.invalid += 1
             continue
-        yield listing
 
 
 def deduplicate(items: Iterable[RentalListing], stats: PipelineStats) -> Iterator[RentalListing]:
