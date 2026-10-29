@@ -7,3 +7,6 @@ Provides-Extra: dev
 Requires-Dist: ruff; extra == "dev"
 Requires-Dist: pytest; extra == "dev"
 Requires-Dist: pre-commit; extra == "dev"
+Requires-Dist: mypy; extra == "dev"
+Requires-Dist: pydantic; extra == "dev"
+Requires-Dist: pydantic-settings; extra == "dev"
