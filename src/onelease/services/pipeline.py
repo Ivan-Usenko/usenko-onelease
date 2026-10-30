@@ -1,13 +1,12 @@
 from collections import Counter
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from itertools import islice
-from typing import Any
 
 from pydantic import ValidationError
 
 from ..domain.models import RentalListing
-from ..sources.schemas import RentalListingIn
+from .ports import Source
+from .schemas import RentalListingIn
 
 
 @dataclass(slots=True)
@@ -16,59 +15,33 @@ class PipelineStats:
     invalid: int = 0
     duplicates: int = 0
     kept: int = 0
+    by_source: Counter[str] = field(default_factory=Counter)
     by_city: Counter[str] = field(default_factory=Counter)
-    price_count: int = 0
-    price_sum: int = 0
-    price_min: int | None = None
-    price_max: int | None = None
-
-    @property
-    def price_avg(self) -> float | None:
-        if not self.price_count:
-            return None
-        return self.price_sum / self.price_count
 
 
-def parse_all(rows: Iterable[dict[str, Any]], stats: PipelineStats) -> Iterator[RentalListing]:
-    for row in rows:
-        stats.read += 1
-        try:
-            yield RentalListingIn.model_validate(row).to_domain()
-        except ValidationError:
-            stats.invalid += 1
-            continue
+class Pipeline:
+    def __init__(self, sources: list[Source]) -> None:
+        self._sources = sources
 
+    def run(self) -> PipelineStats:
+        stats = PipelineStats()
+        seen: set[tuple[str, str]] = set()
+        for source in self._sources:
+            for listing in self._parse(source, stats):
+                if listing.key in seen:
+                    stats.duplicates += 1
+                    continue
+                seen.add(listing.key)
+                stats.kept += 1
+                stats.by_source[source.name] += 1
+                stats.by_city[listing.city] += 1
+        return stats
 
-def deduplicate(items: Iterable[RentalListing], stats: PipelineStats) -> Iterator[RentalListing]:
-    seen: set[tuple[str, str]] = set()
-    for listing in items:
-        if listing.key in seen:
-            stats.duplicates += 1
-            continue
-        seen.add(listing.key)
-        yield listing
-
-
-def count_by_city(items: Iterable[RentalListing]) -> Counter[str]:
-    return Counter(vacancy.city for vacancy in items)
-
-
-def collect(items: Iterable[RentalListing], stats: PipelineStats) -> None:
-    for listing in items:
-        stats.kept += 1
-        stats.by_city[listing.city] += 1
-        price = listing.price
-        if price is None:
-            continue
-        stats.price_count += 1
-        stats.price_sum += price
-        if stats.price_min is None or price < stats.price_min:
-            stats.price_min = price
-        if stats.price_max is None or price > stats.price_max:
-            stats.price_max = price
-
-
-def batched(items: Iterable[RentalListing], size: int) -> Iterator[tuple[RentalListing, ...]]:
-    iterator = iter(items)
-    while batch := tuple(islice(iterator, size)):
-        yield batch
+    @staticmethod
+    def _parse(source: Source, stats: PipelineStats) -> Iterator[RentalListing]:
+        for row in source.read():
+            stats.read += 1
+            try:
+                yield RentalListingIn.model_validate(row).to_domain()
+            except ValidationError:
+                stats.invalid += 1

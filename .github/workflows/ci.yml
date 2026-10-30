@@ -1,2 +1,4 @@
 - name: Type check
   run: mypy src tests
+- name: Architecture contracts
+  run: lint-imports
