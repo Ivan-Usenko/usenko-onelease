@@ -28,3 +28,18 @@ warn_unused_ignores = true
 [[tool.mypy.overrides]]
 module = ["some_untyped_lib.*"]
 ignore_missing_imports = true
+
+[tool.importlinter]
+root_package = "onelease"
+
+[[tool.importlinter.contracts]]
+name = "Domain is independent"
+type = "forbidden"
+source_modules = ["onelease.domain"]
+forbidden_modules = ["onelease.services", "onelease.sources", "onelease.cli"]
+
+[[tool.importlinter.contracts]]
+name = "Services do not know adapters"
+type = "forbidden"
+source_modules = ["onelease.services"]
+forbidden_modules = ["onelease.sources", "onelease.cli"]
