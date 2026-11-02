@@ -1,3 +1,4 @@
+import logging
 from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -7,6 +8,8 @@ from pydantic import ValidationError
 from ..domain.models import RentalListing
 from .ports import Source
 from .schemas import RentalListingIn
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -25,6 +28,7 @@ class Pipeline:
 
     def run(self) -> PipelineStats:
         stats = PipelineStats()
+        logger.info("start processing %d source(s)", len(self._sources))
         seen: set[tuple[str, str]] = set()
         for source in self._sources:
             for listing in self._parse(source, stats):
@@ -35,6 +39,11 @@ class Pipeline:
                 stats.kept += 1
                 stats.by_source[source.name] += 1
                 stats.by_city[listing.city] += 1
+        logger.info(
+            "done: kept %d, invalid %d, duplicates %d", stats.kept, stats.invalid, stats.duplicates
+        )
+        if stats.invalid:
+            logger.warning("skipped %d invalid rows", stats.invalid)
         return stats
 
     @staticmethod
@@ -43,5 +52,7 @@ class Pipeline:
             stats.read += 1
             try:
                 yield RentalListingIn.model_validate(row).to_domain()
-            except ValidationError:
+            except ValidationError as exc:
                 stats.invalid += 1
+                logger.debug("skip row: %d validation errors", exc.error_count())
+                continue
