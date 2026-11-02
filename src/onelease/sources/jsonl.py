@@ -4,8 +4,8 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from ..services.ports import Source
 from ..errors import SourceError
+from ..services.ports import Source
 
 logger = logging.getLogger(__name__)
 
